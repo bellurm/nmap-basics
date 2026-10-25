@@ -29,7 +29,7 @@ function explains_and_menu() {
     t2_scanning="Select to scanning polite (more time than -T3) (-T2)."
     t1_scanning="Select to scanning sneaky (more time than -T2) (-T1)."
     t0_scanning="Select to scanning paranoid (more time than -T1) (-T0)."
-    default_script="Select to scanning with default scripts. It's safe and secure (--script=default or -sC)."
+    default_script="Select to scanning with default scripts. Some default scripts are intrusive; review them before use (--script=default or -sC)."
     vuln_script="Select to get vulnerabilities on the target (--script vuln)."
     exploit_script="Select to get expolits on the target (--script exploit)."
     auth_script="Select to get authentication informations on the target (--script auth)."
@@ -88,13 +88,16 @@ function explains_and_menu() {
 
 function main() {
     operations=()
+    local targets
+    local -a target_list
+    local has_input_file=0
 
     while true; do
         echo ""
-        read -e -p $'\e[33m[???] Please, select from the menu and hit enter (\'exit\' to start scan, \'done\' to quit): \e[0m' select
+        read -r -e -p $'\e[33m[???] Please, select from the menu and hit enter (\'exit\' to start scan, \'done\' to quit): \e[0m' select || return 0
 
         if [[ "$select" == "1" ]]; then
-            read -e -p $'\e[33m[???] Which ports do you want to scan? (e.g. 22,23,25 or define a range e.g. 21-54) > \e[0m' specified_ports
+            read -r -e -p $'\e[33m[???] Which ports do you want to scan? (e.g. 22,23,25 or define a range e.g. 21-54) > \e[0m' specified_ports || return 0
             operations+=("-p" "$specified_ports")
             echo -e "\e[32m[INFO] $specified_ports is/are added with the '-p' parameter.\e[0m"
 
@@ -115,13 +118,12 @@ function main() {
             echo -e "\e[32m[INFO] The '-sF' parameter has been added to send FIN packets.\e[0m"
 
         elif [[ "$select" == "6" ]]; then
-            read -e -p $'\e[33m[???] Please, write the path of the file containing the IP addresses: \e[0m' path
+            read -r -e -p $'\e[33m[???] Please, write the path of the file containing the IP addresses: \e[0m' path || return 0
             if [[ -f "$path" ]]; then
                 operations+=("-iL" "$path")
                 echo -e "\e[32m[INFO] The '-iL' parameter has been added with given file path ($path).\e[0m"
                 echo -e "\e[1;31m[INFO] This command in progress: nmap ${operations[*]} \e[0m\n"
-                nmap "${operations[@]}"
-                exit 0
+                has_input_file=1
             else
                 echo -e "\e[31m[WARN] Invalid path or file name. Please try again.\e[0m"
             fi
@@ -135,7 +137,7 @@ function main() {
             echo -e "\e[32m[INFO] The '-F' parameter has been added for scanning the most popular 100 ports.\e[0m"
 
         elif [[ "$select" == "9" ]]; then
-            read -e -p $'\e[33m[???] How many ports to scan? > \e[0m' most_popular_choice
+            read -r -e -p $'\e[33m[???] How many ports to scan? > \e[0m' most_popular_choice || return 0
             operations+=("--top-ports" "$most_popular_choice")
 
         elif [[ "$select" == "10" ]]; then
@@ -143,7 +145,7 @@ function main() {
             echo -e "\e[32m[INFO] The '-sn' parameter has been added to detect if your target is up/alive.\e[0m"
 
         elif [[ "$select" == "11" ]]; then
-            read -e -p $'\e[33m[???] Give us a port number for the SYN ping:  \e[0m' syn_port
+            read -r -e -p $'\e[33m[???] Give us a port number for the SYN ping:  \e[0m' syn_port || return 0
             operations+=("-PS${syn_port}")
             echo -e "\e[32m[INFO] The '-PS' parameter along with the specified port has been added to the SYN ping operation.\e[0m"
 
@@ -164,7 +166,7 @@ function main() {
             echo -e "\e[32m[INFO] The '-sV' parameter has been added to the version detection operation.\e[0m"
 
         elif [[ "$select" == "16" ]]; then
-            read -e -p $'\e[36m[???] Give us a number to support version detection (0-9): \e[0m' supporting_value
+            read -r -e -p $'\e[36m[???] Give us a number to support version detection (0-9): \e[0m' supporting_value || return 0
             operations+=("-sV" "--version-intensity" "$supporting_value")
             echo -e "\e[32m[INFO] The '-sV --version-intensity' parameters have been added to support the '-sV' option.\e[0m"
 
@@ -181,7 +183,7 @@ function main() {
             echo -e "\e[32m[INFO] The '-O --osscan-limit' parameters have been added to detect OS.\e[0m"
 
         elif [[ "$select" == "20" ]]; then
-            read -e -p $'\e[33m[???] How many times should OS detection be tried? > \e[0m' tries
+            read -r -e -p $'\e[33m[???] How many times should OS detection be tried? > \e[0m' tries || return 0
             operations+=("-O" "--max-os-tries" "$tries")
             echo -e "\e[32m[INFO] The '-O --max-os-tries' parameters have been added with value ($tries).\e[0m"
 
@@ -219,7 +221,7 @@ function main() {
 
         elif [[ "$select" == "29" ]]; then
             operations+=("--script=default")
-            echo -e "\e[32m[INFO] The '--script=default' parameter has been added for safe default scripts.\e[0m"
+            echo -e "\e[32m[INFO] The '--script=default' parameter has been added for default scripts; review their impact before use.\e[0m"
 
         elif [[ "$select" == "30" ]]; then
             operations+=("--script" "vuln")
@@ -235,7 +237,7 @@ function main() {
 
         elif [[ "$select" == "33" ]]; then
             ls /usr/share/nmap/scripts
-            read -e -p $'\e[33m\n[???] You can see all of the scripts above. To try all software related to a protocol, just type the protocol name (e.g. http, ssh): \e[0m' choose_proto
+            read -r -e -p $'\e[33m\n[???] You can see all of the scripts above. To try all software related to a protocol, just type the protocol name (e.g. http, ssh): \e[0m' choose_proto || return 0
             operations+=("--script" "${choose_proto}-*")
             echo -e "\e[32m[INFO] The '--script ${choose_proto}-*' parameter has been added to use all $choose_proto scripts.\e[0m"
 
@@ -244,7 +246,7 @@ function main() {
             echo -e "\e[32m[INFO] The '-f' parameter has been added to try to avoid the firewall.\e[0m"
 
         elif [[ "$select" == "35" ]]; then
-            read -e -p $'\e[33m\n[???] How many fake IPs to create? > \e[0m' choose_fake_ip
+            read -r -e -p $'\e[33m\n[???] How many fake IPs to create? > \e[0m' choose_fake_ip || return 0
             operations+=("-D" "RND:$choose_fake_ip")
             echo -e "\e[32m[INFO] The '-D RND:$choose_fake_ip' parameters have been added for IP spoofing.\e[0m"
 
@@ -257,17 +259,32 @@ function main() {
             echo -e "\e[32m[INFO] The '-v' parameter has been added for verbose output.\e[0m"
 
         elif [[ "$select" == "exit" ]]; then
-            read -e -p $'\e[33m[???] Give us one or more IP addresses, Domain Names or IP range (e.g. 192.168.1.0/24) to scan: \e[0m' targets
-            echo -e "\e[1;31m[INFO] This command in progress: nmap ${operations[*]} $targets \e[0m\n"
-
-            for item in "${operations[@]}"; do
-                if [[ "$item" == "--script" ]] || [[ "$item" == "--script=default" ]]; then
-                    apt-cache policy nmap
+            target_list=()
+            if (( has_input_file == 0 )); then
+                read -r -p 'Targets (space-separated IPs, networks or hostnames): ' targets || return 0
+                read -r -a target_list <<< "$targets"
+                if (( ${#target_list[@]} == 0 )); then
+                    echo '[WARN] At least one target is required.'
+                    continue
                 fi
-            done
-
-            nmap "${operations[@]}" $targets
+                local invalid=0
+                for target in "${target_list[@]}"; do
+                    if [[ "$target" == -* ]]; then invalid=1; fi
+                done
+                if (( invalid )); then
+                    echo '[WARN] A target must not begin with a dash.' >&2
+                    continue
+                fi
+            fi
+            printf '[INFO] Running:'
+            printf ' %q' nmap "${operations[@]}" "${target_list[@]}"
+            printf '\n'
+            if ! nmap "${operations[@]}" "${target_list[@]}"; then
+                echo '[ERROR] Nmap failed.' >&2
+                return 1
+            fi
             operations=()
+            has_input_file=0
 
         elif [[ "$select" == "done" ]]; then
             echo -e "\e[32m[SUCCESS] Exited by user.\e[0m"
@@ -278,9 +295,9 @@ function main() {
     done
 }
 
-if [[ "$(id -u)" -ne 0 ]]; then
-    echo "[WARN] You have to be root."
-else
-    explains_and_menu
-    main
+if ! command -v nmap >/dev/null 2>&1; then
+    echo '[ERROR] Nmap is not installed.' >&2
+    exit 1
 fi
+explains_and_menu
+main
